@@ -1,8 +1,7 @@
-// server.js - Serveur Node.js pour gérer les versions
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -10,7 +9,7 @@ app.use(express.json());
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-const ADMIN_PASSWORD = 'XenoAdmin2025'; // ✅ CHANGEZ CE MOT DE PASSE !
+const ADMIN_PASSWORD = 'mifygzifyzgefizyefgzfe'; // ✅ CHANGEZ CE MOT DE PASSE !
 
 // Base de données en mémoire (en production, utiliser MongoDB, PostgreSQL, etc.)
 let versions = [
@@ -953,14 +952,12 @@ app.get('/', (req, res) => {
     `);
 });
 
-// Pour développement local
-if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(\`\n✅ Xeno Version Manager running on http://localhost:\${PORT}\`);
-        console.log(\`📊 Admin panel: http://localhost:\${PORT}\`);
-        console.log(\`🔑 Admin Password: \${ADMIN_PASSWORD}\n\`);
-    });
-}
+// Démarrer le serveur
+app.listen(PORT, () => {
+    console.log(`\n✅ Xeno Version Manager running on http://localhost:${PORT}`);
+    console.log(`📊 Admin panel: http://localhost:${PORT}`);
+    console.log(`🔑 Admin Password: ${ADMIN_PASSWORD}\n`);
+});
 
-// Pour Vercel (serverless)
+// Export pour Vercel
 module.exports = app;
