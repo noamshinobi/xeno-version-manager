@@ -7,14 +7,24 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+const ADMIN_PASSWORD = 'XenoAdmin2025'; // ✅ CHANGEZ CE MOT DE PASSE !
+
 // Base de données en mémoire (en production, utiliser MongoDB, PostgreSQL, etc.)
 let versions = [
     { id: '1', number: '1.0', name: 'Initial Release', description: 'First version', enabled: true, downloads: 0 },
     { id: '2', number: '1.1', name: 'Bug Fixes', description: 'Fixed critical bugs', enabled: true, downloads: 0 },
-    { id: '3', number: '1.2', name: 'New Features', description: 'Added new features', enabled: true, downloads: 0 }
+    { id: '3', number: '1.2', name: 'New Features', description: 'Added new features', enabled: true, downloads: 0 },
+    { id: '4', number: '1.3', name: 'Performance Update', description: 'Optimizations', enabled: true, downloads: 0 },
+    { id: '5', number: '1.4', name: 'Temp Ban Fix', description: 'VGC Emulator fixed', enabled: true, downloads: 0 }
 ];
 
 let logs = [];
+
+// Sessions d'authentification (en mémoire)
+let activeSessions = new Set();
 
 function addLog(message) {
     logs.unshift({
@@ -25,7 +35,15 @@ function addLog(message) {
 }
 
 // ============================================================================
-// ROUTES POUR LE PROGRAMME C++
+// MIDDLEWARE D'AUTHENTIFICATION
+// ============================================================================
+function isAuthenticated(req) {
+    const sessionId = req.headers['x-session-id'];
+    return sessionId && activeSessions.has(sessionId);
+}
+
+// ============================================================================
+// ROUTES PUBLIQUES (pour le programme C++)
 // ============================================================================
 
 // Route pour vérifier si une version est activée
@@ -87,11 +105,60 @@ app.post('/api/increment-version', (req, res) => {
 });
 
 // ============================================================================
-// ROUTES POUR LE PANEL D'ADMINISTRATION
+// ROUTES D'AUTHENTIFICATION
+// ============================================================================
+
+// Login
+app.post('/api/login', (req, res) => {
+    const { password } = req.body;
+    
+    if (password === ADMIN_PASSWORD) {
+        const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+        activeSessions.add(sessionId);
+        
+        addLog(`Admin login successful from ${req.ip}`);
+        
+        res.json({ 
+            success: true, 
+            sessionId: sessionId,
+            message: 'Login successful' 
+        });
+    } else {
+        addLog(`Failed login attempt from ${req.ip}`);
+        res.status(401).json({ 
+            success: false, 
+            error: 'Invalid password' 
+        });
+    }
+});
+
+// Logout
+app.post('/api/logout', (req, res) => {
+    const sessionId = req.headers['x-session-id'];
+    if (sessionId) {
+        activeSessions.delete(sessionId);
+        addLog(`Admin logout from ${req.ip}`);
+    }
+    res.json({ success: true });
+});
+
+// Vérifier la session
+app.get('/api/check-auth', (req, res) => {
+    const sessionId = req.headers['x-session-id'];
+    const authenticated = sessionId && activeSessions.has(sessionId);
+    res.json({ authenticated });
+});
+
+// ============================================================================
+// ROUTES PROTÉGÉES (nécessitent authentification)
 // ============================================================================
 
 // Obtenir toutes les versions
 app.get('/api/versions', (req, res) => {
+    if (!isAuthenticated(req)) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     res.json({
         versions: versions,
         totalDownloads: versions.reduce((sum, v) => sum + (v.downloads || 0), 0),
@@ -101,16 +168,20 @@ app.get('/api/versions', (req, res) => {
 
 // Obtenir les logs
 app.get('/api/logs', (req, res) => {
+    if (!isAuthenticated(req)) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     res.json({ logs: logs.slice(0, 100) });
 });
 
 // Activer/Désactiver une version
 app.post('/api/version/toggle', (req, res) => {
-    const { versionId, password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    const { versionId } = req.body;
     
     const version = versions.find(v => v.id === versionId);
     if (!version) {
@@ -118,7 +189,7 @@ app.post('/api/version/toggle', (req, res) => {
     }
     
     version.enabled = !version.enabled;
-    addLog(`Version ${version.number} ${version.enabled ? 'ENABLED' : 'DISABLED'} by admin`);
+    addLog(`Version ${version.number} ${version.enabled ? 'ENABLED' : 'DISABLED'} by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -128,11 +199,11 @@ app.post('/api/version/toggle', (req, res) => {
 
 // Désactiver toutes sauf une
 app.post('/api/version/only-this', (req, res) => {
-    const { versionId, password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    const { versionId } = req.body;
     
     versions = versions.map(v => ({
         ...v,
@@ -140,7 +211,7 @@ app.post('/api/version/only-this', (req, res) => {
     }));
     
     const activeVersion = versions.find(v => v.id === versionId);
-    addLog(`All versions disabled except ${activeVersion.number}`);
+    addLog(`All versions disabled except ${activeVersion.number} by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -150,14 +221,12 @@ app.post('/api/version/only-this', (req, res) => {
 
 // Activer toutes les versions
 app.post('/api/version/enable-all', (req, res) => {
-    const { password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     
     versions = versions.map(v => ({ ...v, enabled: true }));
-    addLog('All versions enabled by admin');
+    addLog(`All versions enabled by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -167,14 +236,12 @@ app.post('/api/version/enable-all', (req, res) => {
 
 // Désactiver toutes les versions
 app.post('/api/version/disable-all', (req, res) => {
-    const { password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     
     versions = versions.map(v => ({ ...v, enabled: false }));
-    addLog('All versions disabled by admin');
+    addLog(`All versions disabled by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -184,11 +251,11 @@ app.post('/api/version/disable-all', (req, res) => {
 
 // Ajouter une nouvelle version
 app.post('/api/version/add', (req, res) => {
-    const { number, name, description, password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    const { number, name, description } = req.body;
     
     if (!number || !name) {
         return res.status(400).json({ error: 'Number and name required' });
@@ -204,7 +271,7 @@ app.post('/api/version/add', (req, res) => {
     };
     
     versions.push(newVersion);
-    addLog(`New version ${number} added by admin`);
+    addLog(`New version ${number} added by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -214,11 +281,11 @@ app.post('/api/version/add', (req, res) => {
 
 // Supprimer une version
 app.post('/api/version/delete', (req, res) => {
-    const { versionId, password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    const { versionId } = req.body;
     
     const version = versions.find(v => v.id === versionId);
     if (!version) {
@@ -226,7 +293,7 @@ app.post('/api/version/delete', (req, res) => {
     }
     
     versions = versions.filter(v => v.id !== versionId);
-    addLog(`Version ${version.number} deleted by admin`);
+    addLog(`Version ${version.number} deleted by admin from ${req.ip}`);
     
     res.json({ 
         success: true 
@@ -235,11 +302,11 @@ app.post('/api/version/delete', (req, res) => {
 
 // Mettre à jour une version
 app.post('/api/version/update', (req, res) => {
-    const { versionId, updates, password } = req.body;
-    
-    if (password !== 'admin123') {
+    if (!isAuthenticated(req)) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
+    
+    const { versionId, updates } = req.body;
     
     const versionIndex = versions.findIndex(v => v.id === versionId);
     if (versionIndex === -1) {
@@ -251,7 +318,7 @@ app.post('/api/version/update', (req, res) => {
         ...updates
     };
     
-    addLog(`Version ${versions[versionIndex].number} updated by admin`);
+    addLog(`Version ${versions[versionIndex].number} updated by admin from ${req.ip}`);
     
     res.json({ 
         success: true, 
@@ -260,7 +327,7 @@ app.post('/api/version/update', (req, res) => {
 });
 
 // ============================================================================
-// PAGE HTML D'ADMINISTRATION
+// PAGE HTML D'ADMINISTRATION AVEC AUTHENTIFICATION
 // ============================================================================
 
 app.get('/', (req, res) => {
@@ -287,6 +354,59 @@ app.get('/', (req, res) => {
             padding: 40px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
+        
+        /* Login Screen */
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-container h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        .login-container input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .login-container button {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .login-container button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .error-message {
+            color: #ef4444;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        /* Dashboard */
         h1 {
             color: #333;
             margin-bottom: 10px;
@@ -294,7 +414,20 @@ app.get('/', (req, res) => {
         }
         .subtitle {
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+        }
+        .logout-btn {
+            float: right;
+            padding: 10px 20px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .logout-btn:hover {
+            background: #dc2626;
         }
         .stats {
             display: grid;
@@ -434,10 +567,23 @@ app.get('/', (req, res) => {
             outline: none;
             border-color: #667eea;
         }
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <h1>🔐 Admin Login</h1>
+        <input type="password" id="passwordInput" placeholder="Enter admin password" onkeypress="if(event.key==='Enter') login()">
+        <button onclick="login()">Login</button>
+        <div id="loginError" class="error-message"></div>
+    </div>
+
+    <!-- Dashboard (hidden by default) -->
+    <div id="dashboard" class="container hidden">
+        <button class="logout-btn" onclick="logout()">🚪 Logout</button>
         <h1>🎮 Xeno Version Manager</h1>
         <p class="subtitle">Control your program versions remotely</p>
         
@@ -465,8 +611,8 @@ app.get('/', (req, res) => {
         
         <div id="addForm" class="add-version-form" style="display:none;">
             <h3 style="margin-bottom:15px;">Add New Version</h3>
-            <input type="text" id="newNumber" placeholder="Version Number (e.g., 1.3)">
-            <input type="text" id="newName" placeholder="Version Name (e.g., New Update)">
+            <input type="text" id="newNumber" placeholder="Version Number (e.g., 1.5)">
+            <input type="text" id="newName" placeholder="Version Name (e.g., Bug Fixes)">
             <input type="text" id="newDesc" placeholder="Description (optional)">
             <button class="btn-success" onclick="addVersion()">Create Version</button>
             <button class="btn-danger" onclick="hideAddForm()">Cancel</button>
@@ -480,104 +626,266 @@ app.get('/', (req, res) => {
     </div>
     
     <script>
-        const API = 'http://localhost:3000/api';
-        const PASSWORD = 'admin123';
+        const API = window.location.origin + '/api';
+        let sessionId = localStorage.getItem('sessionId');
+        
+        // Vérifier l'authentification au chargement
+        async function checkAuth() {
+            if (!sessionId) {
+                showLogin();
+                return;
+            }
+            
+            try {
+                const res = await fetch(API + '/check-auth', {
+                    headers: { 'x-session-id': sessionId }
+                });
+                const data = await res.json();
+                
+                if (data.authenticated) {
+                    showDashboard();
+                    loadData();
+                } else {
+                    showLogin();
+                }
+            } catch (error) {
+                showLogin();
+            }
+        }
+        
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+        }
+        
+        function showDashboard() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+        
+        async function login() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            if (!password) {
+                errorDiv.textContent = 'Please enter a password';
+                return;
+            }
+            
+            try {
+                const res = await fetch(API + '/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', sessionId);
+                    document.getElementById('passwordInput').value = '';
+                    errorDiv.textContent = '';
+                    showDashboard();
+                    loadData();
+                } else {
+                    errorDiv.textContent = 'Invalid password';
+                    document.getElementById('passwordInput').value = '';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error';
+            }
+        }
+        
+        async function logout() {
+            try {
+                await fetch(API + '/logout', {
+                    method: 'POST',
+                    headers: { 'x-session-id': sessionId }
+                });
+            } catch (error) {}
+            
+            sessionId = null;
+            localStorage.removeItem('sessionId');
+            showLogin();
+        }
         
         async function loadData() {
-            const res = await fetch(API + '/versions');
-            const data = await res.json();
+            if (!sessionId) return;
             
-            document.getElementById('totalVersions').textContent = data.versions.length;
-            document.getElementById('activeVersions').textContent = data.activeVersions;
-            document.getElementById('totalDownloads').textContent = data.totalDownloads;
-            
-            const sortedVersions = data.versions.sort((a, b) => 
-                parseFloat(b.number) - parseFloat(a.number)
-            );
-            
-            document.getElementById('versionsList').innerHTML = sortedVersions.map(v => \`
-                <div class="version-card \${!v.enabled ? 'disabled' : ''}">
-                    <div class="version-info">
-                        <h3>v\${v.number}
-                            <span class="status-badge status-\${v.enabled ? 'active' : 'disabled'}">
-                                \${v.enabled ? 'ACTIVE' : 'DISABLED'}
-                            </span>
-                        </h3>
-                        <div class="version-name">\${v.name}</div>
-                        <div class="version-desc">\${v.description} • \${v.downloads || 0} downloads</div>
+            try {
+                const res = await fetch(API + '/versions', {
+                    headers: { 'x-session-id': sessionId }
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                document.getElementById('totalVersions').textContent = data.versions.length;
+                document.getElementById('activeVersions').textContent = data.activeVersions;
+                document.getElementById('totalDownloads').textContent = data.totalDownloads;
+                
+                const sortedVersions = data.versions.sort((a, b) => 
+                    parseFloat(b.number) - parseFloat(a.number)
+                );
+                
+                document.getElementById('versionsList').innerHTML = sortedVersions.map(v => \`
+                    <div class="version-card \${!v.enabled ? 'disabled' : ''}">
+                        <div class="version-info">
+                            <h3>v\${v.number}
+                                <span class="status-badge status-\${v.enabled ? 'active' : 'disabled'}">
+                                    \${v.enabled ? 'ACTIVE' : 'DISABLED'}
+                                </span>
+                            </h3>
+                            <div class="version-name">\${v.name}</div>
+                            <div class="version-desc">\${v.description} • \${v.downloads || 0} downloads</div>
+                        </div>
+                        <div class="version-actions">
+                            <button class="btn-\${v.enabled ? 'danger' : 'success'}" 
+                                    onclick="toggleVersion('\${v.id}')">
+                                \${v.enabled ? 'Disable' : 'Enable'}
+                            </button>
+                            <button class="btn-warning" onclick="onlyThis('\${v.id}')">
+                                Only This
+                            </button>
+                            <button class="btn-danger" onclick="deleteVersion('\${v.id}')">
+                                Delete
+                            </button>
+                        </div>
                     </div>
-                    <div class="version-actions">
-                        <button class="btn-\${v.enabled ? 'danger' : 'success'}" 
-                                onclick="toggleVersion('\${v.id}')">
-                            \${v.enabled ? 'Disable' : 'Enable'}
-                        </button>
-                        <button class="btn-warning" onclick="onlyThis('\${v.id}')">
-                            Only This
-                        </button>
-                        <button class="btn-danger" onclick="deleteVersion('\${v.id}')">
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            \`).join('');
-            
-            const logsRes = await fetch(API + '/logs');
-            const logsData = await logsRes.json();
-            
-            document.getElementById('logs').innerHTML = logsData.logs
-                .map(log => \`
-                    <div class="log-entry">
-                        <strong>\${new Date(log.timestamp).toLocaleString()}</strong>: \${log.message}
-                    </div>
-                \`).join('') || '<div class="log-entry">No logs yet</div>';
+                \`).join('');
+                
+                const logsRes = await fetch(API + '/logs', {
+                    headers: { 'x-session-id': sessionId }
+                });
+                const logsData = await logsRes.json();
+                
+                document.getElementById('logs').innerHTML = logsData.logs
+                    .map(log => \`
+                        <div class="log-entry">
+                            <strong>\${new Date(log.timestamp).toLocaleString()}</strong>: \${log.message}
+                        </div>
+                    \`).join('') || '<div class="log-entry">No logs yet</div>';
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
         }
         
         async function toggleVersion(id) {
-            await fetch(API + '/version/toggle', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({versionId: id, password: PASSWORD})
-            });
-            loadData();
+            try {
+                const res = await fetch(API + '/version/toggle', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId 
+                    },
+                    body: JSON.stringify({ versionId: id })
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                loadData();
+            } catch (error) {
+                alert('Error toggling version');
+            }
         }
         
         async function onlyThis(id) {
             if (!confirm('Disable all other versions?')) return;
-            await fetch(API + '/version/only-this', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({versionId: id, password: PASSWORD})
-            });
-            loadData();
+            try {
+                const res = await fetch(API + '/version/only-this', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId 
+                    },
+                    body: JSON.stringify({ versionId: id })
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                loadData();
+            } catch (error) {
+                alert('Error updating versions');
+            }
         }
         
         async function deleteVersion(id) {
             if (!confirm('Delete this version?')) return;
-            await fetch(API + '/version/delete', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({versionId: id, password: PASSWORD})
-            });
-            loadData();
+            try {
+                const res = await fetch(API + '/version/delete', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId 
+                    },
+                    body: JSON.stringify({ versionId: id })
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                loadData();
+            } catch (error) {
+                alert('Error deleting version');
+            }
         }
         
         async function enableAll() {
-            await fetch(API + '/version/enable-all', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({password: PASSWORD})
-            });
-            loadData();
+            try {
+                const res = await fetch(API + '/version/enable-all', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId 
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                loadData();
+            } catch (error) {
+                alert('Error enabling all versions');
+            }
         }
         
         async function disableAll() {
             if (!confirm('Disable ALL versions?')) return;
-            await fetch(API + '/version/disable-all', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({password: PASSWORD})
-            });
-            loadData();
+            try {
+                const res = await fetch(API + '/version/disable-all', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId 
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                loadData();
+            } catch (error) {
+                alert('Error disabling all versions');
+            }
         }
         
         function showAddForm() {
@@ -586,45 +894,71 @@ app.get('/', (req, res) => {
         
         function hideAddForm() {
             document.getElementById('addForm').style.display = 'none';
+            document.getElementById('newNumber').value = '';
+            document.getElementById('newName').value = '';
+            document.getElementById('newDesc').value = '';
         }
         
         async function addVersion() {
-            const number = document.getElementById('newNumber').value;
-            const name = document.getElementById('newName').value;
-            const description = document.getElementById('newDesc').value;
+            const number = document.getElementById('newNumber').value.trim();
+            const name = document.getElementById('newName').value.trim();
+            const description = document.getElementById('newDesc').value.trim();
             
             if (!number || !name) {
                 alert('Version number and name are required');
                 return;
             }
             
-            await fetch(API + '/version/add', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({number, name, description, password: PASSWORD})
-            });
-            
-            document.getElementById('newNumber').value = '';
-            document.getElementById('newName').value = '';
-            document.getElementById('newDesc').value = '';
-            hideAddForm();
-            loadData();
+            try {
+                const res = await fetch(API + '/version/add', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-session-id': sessionId
+                    },
+                    body: JSON.stringify({ number, name, description })
+                });
+                
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
+                
+                const result = await res.json();
+                
+                if (result.success) {
+                    alert('Version added successfully!');
+                    hideAddForm();
+                    loadData();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                alert('Error adding version');
+            }
         }
         
-        loadData();
-        setInterval(loadData, 10000); // Rafraîchir toutes les 10 secondes
+        // Charger au démarrage
+        checkAuth();
+        
+        // Rafraîchir toutes les 10 secondes (seulement si authentifié)
+        setInterval(() => {
+            if (sessionId && !document.getElementById('dashboard').classList.contains('hidden')) {
+                loadData();
+            }
+        }, 10000);
     </script>
 </body>
 </html>
     `);
 });
 
+// Pour développement local
 if (process.env.NODE_ENV !== 'production') {
-    const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
-        console.log(`\n✅ Xeno Version Manager running on http://localhost:${PORT}`);
-        console.log(`📊 Admin panel: http://localhost:${PORT}`);
-        console.log(`🔑 Password: admin123\n`);
+        console.log(\`\n✅ Xeno Version Manager running on http://localhost:\${PORT}\`);
+        console.log(\`📊 Admin panel: http://localhost:\${PORT}\`);
+        console.log(\`🔑 Admin Password: \${ADMIN_PASSWORD}\n\`);
     });
 }
 
