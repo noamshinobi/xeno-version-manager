@@ -13,7 +13,7 @@ const ADMIN_PASSWORD = 'mifygzifyzgefizyefgzfe'; // ✅ CHANGEZ CE MOT DE PASSE 
 
 // Base de données en mémoire (en production, utiliser MongoDB, PostgreSQL, etc.)
 let versions = [
-    { id: '5', number: '1.4', name: 'Temp Ban Fix', description: 'VGC Emulator fixed', enabled: true, downloads: 0 }
+    { id: '5', number: '1.4', name: 'Temp Ban Fix', description: 'VGC Emulator fixed', enabled: false, downloads: 0 }
 ];
 
 let logs = [];
@@ -957,4 +957,5 @@ app.listen(PORT, () => {
 
 // Export pour Vercel
 module.exports = app;
+
 
