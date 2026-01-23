@@ -13,10 +13,6 @@ const ADMIN_PASSWORD = 'mifygzifyzgefizyefgzfe'; // ✅ CHANGEZ CE MOT DE PASSE 
 
 // Base de données en mémoire (en production, utiliser MongoDB, PostgreSQL, etc.)
 let versions = [
-    { id: '1', number: '1.0', name: 'Initial Release', description: 'First version', enabled: true, downloads: 0 },
-    { id: '2', number: '1.1', name: 'Bug Fixes', description: 'Fixed critical bugs', enabled: true, downloads: 0 },
-    { id: '3', number: '1.2', name: 'New Features', description: 'Added new features', enabled: true, downloads: 0 },
-    { id: '4', number: '1.3', name: 'Performance Update', description: 'Optimizations', enabled: true, downloads: 0 },
     { id: '5', number: '1.4', name: 'Temp Ban Fix', description: 'VGC Emulator fixed', enabled: true, downloads: 0 }
 ];
 
@@ -961,3 +957,4 @@ app.listen(PORT, () => {
 
 // Export pour Vercel
 module.exports = app;
+
