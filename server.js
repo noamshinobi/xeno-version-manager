@@ -15,7 +15,7 @@ const ADMIN_PASSWORD = 'mifygzifyzgefizyefgzfe'; // ✅ CHANGEZ CE MOT DE PASSE 
 let versions = [
     { id: '5', number: '1.4', name: 'Temp Ban Fix', description: 'VGC Emulator fixed', enabled: false, downloads: 0 },
     { id: '6', number: '1.5', name: 'Emulator Updt', description: 'VGC Emulator fixed', enabled: true, downloads: 0 },
-    { id: '7', number: '1.6', name: 'Little comfort Updt', description: 'temp, popup, emu, enabled: true, downloads: 0 }
+    { id: '7', number: '1.6', name: 'Little Comfort Updt', description: 'temp, emu, popup', enabled: true, downloads: 0 }
 ];
 
 let logs = [];
@@ -959,6 +959,7 @@ app.listen(PORT, () => {
 
 // Export pour Vercel
 module.exports = app;
+
 
 
 
