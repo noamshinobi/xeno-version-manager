@@ -18,7 +18,7 @@ let versions = [
     { id: '7', number: '1.6', name: 'BSOD fixes', description: 'blue screen with temp fixed', enabled: false, downloads: 0 },
     { id: '8', number: '1.7', name: 'New Internal Added', description: 'internal dll added', enabled: false, downloads: 0 },
     { id: '9', number: '1.8', name: 'New Popup-Bypass', description: 'popup UHQ', enabled: false, downloads: 0 },
-    { id: '10', number: '1.8.1', name: 'Popup Semi-NoRestart', description: 'popup encore plus uhq', enabled: true, downloads: 0 }
+    { id: '10', number: '1.8.1', name: 'Popup Semi-NoRestart', description: 'popup encore plus uhq', enabled: false, downloads: 0 }
 ];
 
 let logs = [];
@@ -962,6 +962,7 @@ app.listen(PORT, () => {
 
 // Export pour Vercel
 module.exports = app;
+
 
 
 
