@@ -9,7 +9,7 @@ app.use(express.json());
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
-const ADMIN_PASSWORD = 'mifygzifyzgefizyefgzfe'; // ✅ CHANGEZ CE MOT DE PASSE !
+const ADMIN_PASSWORD = 'followpasuhq'; // ✅ CHANGEZ CE MOT DE PASSE !
 
 // Base de données en mémoire (en production, utiliser MongoDB, PostgreSQL, etc.)
 let versions = [
