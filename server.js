@@ -19,7 +19,8 @@ let versions = [
     { id: '8', number: '1.7', name: 'New Internal Added', description: 'internal dll added', enabled: false, downloads: 0 },
     { id: '9', number: '1.8', name: 'New Popup-Bypass', description: 'popup UHQ', enabled: false, downloads: 0 },
     { id: '10', number: '1.8.1', name: 'New Popup Bypass/Emu Inproved', description: 'popup encore plus uhq et emu', enabled: false, downloads: 0 },
-    { id: '11', number: '1.8.2', name: 'New Popup Bypass/Emu Inproved', description: 'popup encore plus uhq et emu', enabled: true, downloads: 0 }
+    { id: '11', number: '1.8.2', name: 'New Popup Bypass/Emu Inproved', description: 'popup encore plus uhq et emu', enabled: true, downloads: 0 },
+    { id: '12', number: '1.9', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: true, downloads: 0 }
 ];
 
 let logs = [];
