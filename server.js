@@ -21,7 +21,8 @@ let versions = [
     { id: '10', number: '1.8.1', name: 'New Popup Bypass/Emu Inproved', description: 'popup encore plus uhq et emu', enabled: false, downloads: 0 },
     { id: '11', number: '1.8.2', name: 'New Popup Bypass/Emu Inproved', description: 'popup encore plus uhq et emu', enabled: false, downloads: 0 },
     { id: '12', number: '1.9', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: false, downloads: 0 },
-    { id: '12', number: '1.9.1.2', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: true, downloads: 0 }
+    { id: '13', number: '1.9.1.2', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: true, downloads: 0 },
+    { id: '14', number: '2.0', name: 'newmenu', description: 'emu trop uhq', enabled: true, downloads: 0 }
 ];
 
 let logs = [];
