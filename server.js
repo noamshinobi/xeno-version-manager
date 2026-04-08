@@ -23,7 +23,7 @@ let versions = [
     { id: '12', number: '1.9', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: false, downloads: 0 },
     { id: '13', number: '1.9.1.2', name: 'Emu Temp Ban', description: 'emu trop uhq', enabled: false, downloads: 0 },
     { id: '14', number: '2.0', name: 'newmenu', description: 'emu trop uhq', enabled: false, downloads: 0 },
-    { id: '15', number: '2.1', name: 'newmenu', description: 'emu trop uhq', enabled: true, downloads: 0 }
+    { id: '15', number: '2.1', name: 'newmenu', description: 'emu trop uhq', enabled: false, downloads: 0 }
 ];
 
 let logs = [];
